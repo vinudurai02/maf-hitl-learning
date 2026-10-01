@@ -1,35 +1,48 @@
-# Microsoft Agent Framework: Human-in-the-Loop Learning Lab
+# Microsoft Agent Framework Learning Lab
 
-A beginner-friendly, notebook-first project for learning Microsoft Agent Framework (MAF) workflows and human-in-the-loop (HITL) patterns with Python.
+A beginner-friendly, notebook-first course for learning **Microsoft Agent Framework (MAF) with Python**. It starts with the mental model and your first agent, then adds tools, multi-turn sessions, workflows, multi-agent orchestration, and Human-in-the-Loop (HITL) safety patterns.
 
-The main lesson is deliberately **LLM-free**: it pauses a workflow for human review, exposes the pending request, and resumes from the exact pause point. An optional example demonstrates approval-gated agent tools with an OpenAI model.
+The teaching style follows the supplied AutoGen notebook: plain-language explanations, a real-life analogy, small runnable examples, and concise takeaways.
 
-> Verified against Microsoft Agent Framework Python **1.19.0** and Microsoft documentation available on 2026-09-30.
+> API baseline: Microsoft Agent Framework Python **1.19.0**, verified against current Microsoft documentation and official samples on 2026-09-30.
 
-## What you will learn
+## Learning path
 
-- How agents differ from deterministic workflows.
-- How `@workflow` and `@step` compose a functional workflow.
-- How `RunContext.request_info()` pauses for human input.
-- How to inspect pending requests and resume with `responses`.
-- Why checkpointed steps matter around expensive work or side effects.
-- How `@tool(approval_mode="always_require")` creates an approval boundary.
+| Module | Topic | Requires a model? |
+|---|---|---|
+| 0 | MAF overview, setup, and first agent | Yes |
+| 1 | Function tools and safe tool design | Yes |
+| 2 | Multi-turn conversations with sessions | Yes |
+| 3 | Functional workflows and deterministic control | No for the basic workflow |
+| 4 | Human-in-the-Loop review and tool approval | No for review; yes for agent approval |
+| 5 | Multi-agent orchestration patterns | Yes |
 
-## Repository map
+Start with [the complete fundamentals notebook](notebooks/00_maf_learning_path.ipynb), then use [the focused HITL lab](notebooks/01_maf_human_in_the_loop.ipynb).
+
+## Repository structure
 
 ```text
 maf-hitl-learning/
-├── notebooks/01_maf_human_in_the_loop.ipynb
-├── examples/hitl_review.py
-├── examples/agent_tool_approval.py
+├── notebooks/
+│   ├── 00_maf_learning_path.ipynb
+│   └── 01_maf_human_in_the_loop.ipynb
+├── examples/
+│   ├── 01_first_agent.py
+│   ├── 02_tools_and_sessions.py
+│   ├── 03_functional_workflow.py
+│   ├── 04_sequential_agents.py
+│   ├── hitl_review.py
+│   └── agent_tool_approval.py
 ├── .env.example
 ├── requirements.txt
-└── pyproject.toml
+├── requirements-models.txt
+├── pyproject.toml
+└── LICENSE
 ```
 
-## Quick start
+## Setup
 
-Requires Python 3.10 or newer.
+Python 3.10 or newer is required.
 
 ```bash
 git clone https://github.com/vinudurai02/maf-hitl-learning.git
@@ -38,59 +51,73 @@ python -m venv .venv
 source .venv/bin/activate        # Windows: .venv\Scripts\activate
 python -m pip install --upgrade pip
 python -m pip install -r requirements.txt
-jupyter lab
 ```
 
-Open `notebooks/01_maf_human_in_the_loop.ipynb` and run it from top to bottom.
-
-The main script requires no model or API key:
+The model-free workflow and HITL lessons now work:
 
 ```bash
+python examples/03_functional_workflow.py
 python examples/hitl_review.py
 ```
 
-## Optional agent tool-approval example
+### Configure a model provider
+
+Install the provider dependencies:
 
 ```bash
-python -m pip install -e '.[openai]'
+python -m pip install -r requirements-models.txt
+```
+
+This course uses Microsoft Foundry in the main agent examples:
+
+```bash
+az login
 cp .env.example .env
-python examples/agent_tool_approval.py
 ```
 
-Set `OPENAI_API_KEY` and `OPENAI_CHAT_MODEL` in `.env` first. The example displays the exact proposed tool call before asking for approval. Rejecting it prevents the tool from running.
+Fill in:
 
-## Mental model
-
-```text
-input → checkpointed work → request_info(...) → PAUSED
-                                               ↓
-                                  human inspects request
-                                               ↓
-                         run(responses={request_id: decision})
-                                               ↓
-                               resume → final output
+```dotenv
+FOUNDRY_PROJECT_ENDPOINT=https://your-project.services.ai.azure.com
+FOUNDRY_MODEL=gpt-4o
 ```
 
-`request_info()` does not call `input()` itself. It emits a request event and returns control to the host. A notebook, CLI, web API, worker, or approval dashboard can act as that host.
+The optional tool-approval example also supports OpenAI through `OPENAI_API_KEY` and `OPENAI_CHAT_MODEL`.
 
-## Production checklist
+## Core mental model
 
-- Authenticate the reviewer and authorize the specific action.
-- Show the exact tool, arguments, destination, and expected impact.
-- Treat approvals as single-use and make side effects idempotent.
-- Persist checkpoints and approval records for long-running work.
-- Add expiry, cancellation, escalation, and a safe timeout default.
-- Revalidate approved inputs immediately before execution.
-- Keep secrets and sensitive data out of prompts, logs, and approval screens.
+| Building block | Purpose |
+|---|---|
+| `Agent` | Combines a model client, instructions, tools, and behavior |
+| `@tool` | Exposes a typed Python function to an agent |
+| Session | Preserves conversation state across agent runs |
+| `@workflow` | Defines deterministic multi-step control flow |
+| `@step` | Checkpoints a completed functional-workflow step |
+| Orchestration | Coordinates multiple specialized agents |
+| HITL request | Pauses work for external information or judgment |
+| Tool approval | Requires a person to approve a proposed tool call |
 
-## Sources
+Use an agent when reasoning is useful. Use a workflow when order, branching, durability, or auditability matters. Combine them when you need both.
 
-- [Microsoft Agent Framework](https://github.com/microsoft/agent-framework)
+## Human-in-the-Loop safety
+
+HITL is one course module—not the entire framework. MAF supports two important patterns:
+
+1. **Free-form review:** a workflow calls `request_info()`, emits a request event, and resumes with `responses={request_id: value}`.
+2. **Tool approval:** a tool marked `approval_mode="always_require"` produces an approval request before its function executes.
+
+Production systems should authenticate reviewers, show exact arguments and impact, expire approvals, log decisions, revalidate inputs, and make side effects idempotent.
+
+## Verified API sources
+
+- [MAF get-started learning path](https://learn.microsoft.com/en-us/agent-framework/get-started/)
+- [Official Python progressive samples](https://github.com/microsoft/agent-framework/tree/main/python/samples/01-get-started)
+- [Workflow capabilities](https://learn.microsoft.com/en-us/agent-framework/workflows/)
+- [Multi-agent orchestrations](https://learn.microsoft.com/en-us/agent-framework/workflows/orchestrations/)
+- [Sequential orchestration](https://learn.microsoft.com/en-us/agent-framework/workflows/orchestrations/sequential)
 - [Human-in-the-loop workflows](https://learn.microsoft.com/en-us/agent-framework/workflows/human-in-the-loop)
-- [Workflow checkpoints](https://learn.microsoft.com/en-us/agent-framework/workflows/checkpoints)
 - [Function-tool approvals](https://learn.microsoft.com/en-us/agent-framework/agents/tools/tool-approval)
-- [Official functional HITL sample](https://github.com/microsoft/agent-framework/blob/main/python/samples/03-workflows/functional/hitl_review.py)
-- [Learning-style reference notebook](https://github.com/Thirumurugan240/AutoGen_Framework/blob/main/15_Human_in_the_Loop.ipynb)
+- [Reference learning notebook](https://github.com/Thirumurugan240/AutoGen_Framework/blob/main/15_Human_in_the_Loop.ipynb)
 
 ## License
 
